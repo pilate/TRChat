@@ -72,12 +72,9 @@ class MessageMixin(object):
     def wait_for_messages(self, callback, cursor=None):
         cls = MessageMixin
         if cursor:
-            index = 0
-            for i in xrange(len(cls.cache)):
-                index = len(cls.cache) - i - 1
-                if cls.cache[index]["id"] == cursor: break
-            recent = cls.cache[index + 1:]
-            if recent:
+            index = int(cls.local_cursor) - int(cursor)
+            if index:
+                recent = cls.cache[-index:]
                 callback(recent)
                 return
         cls.waiters.append(callback)
@@ -97,9 +94,6 @@ class MessageMixin(object):
             cls.redis_conn.ltrim('chat:messages',-self.cache_size,-1)
         cls.local_cursor = cls.redis_conn.get('chat:cursor')
         cls.cache = cls.redis_conn.lrange('chat:messages',0,-1)
-
-        
-
 
 class MessageNewHandler(BaseHandler, MessageMixin):
     @tornado.web.authenticated
@@ -164,13 +158,13 @@ class AuthLogoutHandler(BaseHandler, tornado.auth.FacebookMixin):
 
 def main():
     cls = MessageMixin
-    qrs = QueryRedis
     cls.local_cursor = cls.redis_conn.get('chat:cursor')
     if not cls.local_cursor:
         cls.redis_conn.set('chat:cursor',0)
         cls.local_cursor = 0
     cls.cache = cls.redis_conn.lrange('chat:messages',0,-1)
-    tornado.ioloop.PeriodicCallback(qrs,1000).start()
+
+    tornado.ioloop.PeriodicCallback(QueryRedis,1000).start()
     tornado.options.parse_command_line()
     http_server = tornado.httpserver.HTTPServer(Application())
     http_server.listen(options.port)
