@@ -22,7 +22,6 @@ import tornado.ioloop
 import tornado.options
 import tornado.web
 import os.path
-import uuid
 import redis
 
 from tornado.options import define, options
